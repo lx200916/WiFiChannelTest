@@ -20,6 +20,17 @@ fun ScanResult.getChannelWidth():Int{
         else->0
     }
 }
+fun ScanResult.getChannelWidthFriendlyName():String{
+    return when(this.channelWidth){
+        0->"20Mhz"
+        1->"40Mhz"
+        2->"80Mhz"
+        3->"160Mhz"
+        4->"80Mhz+80Mhz"
+        5->"320Mhz"
+        else->"Unknown"
+    }
+}
 fun getChannelIndex(channel:Int):Int{
     return when(channel){
         in 2400..2484->(channel-2407)/5

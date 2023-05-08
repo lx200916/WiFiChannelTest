@@ -16,6 +16,8 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,12 +29,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.magnifier
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -45,6 +50,7 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -55,14 +61,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.app.ActivityCompat
 import androidx.core.view.WindowCompat
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -72,7 +81,7 @@ import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
 import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
 import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
-import com.patrykandpatrick.vico.core.axis.horizontal.bottomAxis
+import com.patrykandpatrick.vico.core.axis.horizontal.bottomAxisX
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 import org.saltedfish.apitest.ui.theme.APITestTheme
@@ -107,6 +116,10 @@ class MainActivity : ComponentActivity() {
             val SSIDList5G = remember {
                 mutableStateListOf<String>()
             }
+            val channelIndexOverlappedMap = remember {
+                mutableMapOf<Int, MutableList<String>>()
+            }
+            val selectedWifiScanResult = remember { mutableStateOf<ScanResult?>(null) }
             LaunchedEffect(true) {
                 val wifiScanReceiver = object : BroadcastReceiver() {
                     @SuppressLint("MissingPermission")
@@ -131,20 +144,30 @@ class MainActivity : ComponentActivity() {
                         Log.i(TAG, wiFiInfoList.toString())
                         //todo 3.6Ghz?
                         scanResults.forEach { scanResult ->
-                            if (scanResult.SSID.isEmpty()) scanResult.SSID="<Hidden>"
+                            if (scanResult.SSID.isEmpty()) scanResult.SSID = "<Hidden>"
                             val entrys =
                                 if (scanResult.frequency > 5000) entryList5G else entryList24G
                             val SSIDs = if (scanResult.frequency > 5000) SSIDList5G else SSIDList24G
+
                             SSIDs.add(scanResult.SSID)
                             entrys.add(
                                 if (scanResult.channelWidth == CHANNEL_WIDTH_80MHZ_PLUS_MHZ) {
                                     //TODO: Do not Support 80+80
-                                    listOf(NamedFloatEntry(0.0f, 0.0f,scanResult.SSID))
+                                    listOf(NamedFloatEntry(0.0f, 0.0f, scanResult.SSID))
                                 } else {
                                     val center = scanResult.frequency;
                                     val length = scanResult.getChannelWidth() / 2;
                                     val start = getChannelIndex(center - length);
                                     val end = getChannelIndex(center + length);
+                                    for (i in start..end) {
+                                        if (channelIndexOverlappedMap.containsKey(i)) {
+                                            channelIndexOverlappedMap[i]?.add(scanResult.BSSID)
+                                        } else {
+                                            channelIndexOverlappedMap[i] =
+                                                mutableListOf(scanResult.BSSID)
+                                        }
+                                    }
+
                                     listOf(
                                         NamedFloatEntry(start.toFloat(), 0.0f, scanResult.SSID),
                                         NamedFloatEntry(
@@ -152,13 +175,14 @@ class MainActivity : ComponentActivity() {
                                             scanResult.level.absoluteValue.toFloat(),
                                             scanResult.SSID
                                         ),
-                                        NamedFloatEntry(end.toFloat(), 0.0f,scanResult.SSID)
+                                        NamedFloatEntry(end.toFloat(), 0.0f, scanResult.SSID)
                                     )
                                 }
                             )
                         }
 
-                        chartEntryModel = ChartEntryModelProducer(*entryList5G.toTypedArray()).getModel()
+                        chartEntryModel =
+                            ChartEntryModelProducer(*entryList5G.toTypedArray()).getModel()
                         wiFiInfoList.addAll(scanResults)
                     }
                 }
@@ -224,6 +248,85 @@ class MainActivity : ComponentActivity() {
                         }, contentWindowInsets = WindowInsets(0, 0, 0, 0)
 
                     ) {
+                        if (selectedWifiScanResult.value != null) {
+                            val selectedWifiInfo = selectedWifiScanResult.value!!
+                            AlertDialog(
+                                onDismissRequest = {
+                                    // Dismiss the dialog when the user clicks outside the dialog or on the back
+                                    // button. If you want to disable that functionality, simply use an empty
+                                    // onDismissRequest.
+                                    selectedWifiScanResult.value = null
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = { selectedWifiScanResult.value = null }) {
+                                        Text("OK", fontWeight = FontWeight.ExtraBold)
+                                    }
+
+                                },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(id = if (selectedWifiInfo.frequency < 5000) R.drawable.baseline_wifi_24 else R.drawable.baseline_wifi_tethering_24),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        contentDescription = "WiFi Icon",
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                },
+                                title = {
+                                    Text(text = selectedWifiInfo.SSID)
+                                },
+                                text = {
+                                    Column() {
+                                        Row(
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            DetailGridItem("BSSID", selectedWifiInfo.BSSID)
+                                            DetailGridItem(
+                                                "Frequency",
+                                                "${selectedWifiInfo.frequency} MHz"
+                                            )
+                                        }
+                                        Row(
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            DetailGridItem("RSSI", selectedWifiInfo.level.toString())
+                                            DetailGridItem(
+                                                "Channel",
+                                                "${getChannelIndex(selectedWifiInfo.frequency)}"
+                                            )
+                                        }
+                                        Row(
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            DetailGridItem("Channel Width", selectedWifiInfo.getChannelWidthFriendlyName())
+                                            DetailGridItem(
+                                                "Overlapped SSID Num",
+                                                "${(getChannelIndex(selectedWifiInfo.frequency - selectedWifiInfo.getChannelWidth()/2-1)..getChannelIndex( selectedWifiInfo.frequency + selectedWifiInfo.getChannelWidth()/2)+1).map { channelIndexOverlappedMap[it]?: listOf() }.distinct().size-1}"
+                                            )
+                                        }
+                                        Row(
+//                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            DetailGridItem("Capability", selectedWifiInfo.capabilities)
+                                        }
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                            Row {
+                                                DetailGridItem("Standard", selectedWifiInfo.wifiStandard.toString())
+                                            }
+
+                                        }
+                                    }
+
+
+                                }
+
+
+                            )
+
+                        }
                         Column(
                             modifier = Modifier
                                 .padding(it)
@@ -236,13 +339,15 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 ProvideChartStyle(m3ChartStyle(entityColors = LineColors)) {
                                     Chart(
-                                        modifier= Modifier.padding(5.dp).padding(top = 15.dp),
+                                        modifier = Modifier
+                                            .padding(5.dp)
+                                            .padding(top = 15.dp),
                                         chart = lineChart(),
                                         model = chartEntryModel,
                                         startAxis = startAxis(),
-                                        bottomAxis = bottomAxis(tickOmitSpacing = listOf(65f..99f)),
+                                        bottomAxis = bottomAxisX(tickOmitSpacing = listOf(65f..99f)),
                                         marker = rememberMarker()
-                                        )
+                                    )
                                 }
                             }
                             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -251,13 +356,38 @@ class MainActivity : ComponentActivity() {
                                         Modifier
                                             .fillMaxWidth()
                                             .height(intrinsicSize = IntrinsicSize.Max)
-                                            .padding(vertical = 5.dp)
+                                            .clickable {
+                                                selectedWifiScanResult.value = wiFiInfo
+                                            }
+                                            .padding(vertical = 5.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
+                                        Surface(
+                                            modifier = Modifier
+                                                .size(45.dp)
+                                                .clip(
+                                                    RoundedCornerShape(5.dp)
+                                                ),
+                                            color = MaterialTheme.colorScheme.secondaryContainer
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = if (wiFiInfo.frequency < 5000) R.drawable.baseline_wifi_24 else R.drawable.baseline_wifi_tethering_24),
+                                                tint = MaterialTheme.colorScheme.secondary,
+                                                contentDescription = "WiFi Icon",
+                                                modifier = Modifier
+                                                    .size(16.dp)
+                                                    .padding(6.dp)
+                                            )
+
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
                                         Column() {
                                             Text(
+                                                modifier = Modifier.widthIn(max = 170.dp),
                                                 text = wiFiInfo.SSID,
                                                 style = MaterialTheme.typography.titleLarge,
                                                 fontWeight = if (wiFiInfo.frequency > 3000) FontWeight.Bold else FontWeight.Normal
+
                                             )
                                             Spacer(modifier = Modifier.weight(1f))
                                             Text(
@@ -269,22 +399,32 @@ class MainActivity : ComponentActivity() {
                                             horizontalAlignment = Alignment.End,
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Tag(
-                                                text = "${wiFiInfo.level.absoluteValue}",
-                                                leadingIcon = {
-                                                    Icon(
-                                                        painterResource(R.drawable.baseline_square_foot_24),
-                                                        contentDescription = "Distance",
-                                                        tint = MaterialTheme.colorScheme.primary
-                                                    )
-                                                })
+                                            Row() {
+                                                Tag(
+                                                    text = "${wiFiInfo.level.absoluteValue}",
+                                                    leadingIcon = {
+                                                        Icon(
+                                                            painterResource(R.drawable.baseline_square_foot_24),
+                                                            contentDescription = "Distance",
+                                                            tint = MaterialTheme.colorScheme.primary
+                                                        )
+                                                    })
+                                                Tag(
+                                                    text = "${getChannelIndex(wiFiInfo.frequency)}",
+                                                    leadingIcon = {
+                                                        Icon(
+                                                            painterResource(R.drawable.baseline_track_changes_24),
+                                                            contentDescription = "Channel Index",
+                                                            tint = MaterialTheme.colorScheme.primary,
+                                                        )
+                                                    })
+
+                                            }
                                             Row() {
                                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                                                     Tag(text = "WiFi${wiFiInfo.wifiStandard}")
                                                 }
-                                                Tag(text = "${wiFiInfo.frequency} Mhz")
-
-
+                                                Tag(text = wiFiInfo.getChannelWidthFriendlyName())
                                             }
                                         }
                                     }
@@ -294,6 +434,18 @@ class MainActivity : ComponentActivity() {
                     }
             }
         }
+    }
+
+    @Composable
+    fun DetailGridItem(key: String, vararg value: String) {
+        Text(text = buildAnnotatedString {
+            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                append(key)
+            }
+            append("\n")
+            value.map { append(value.joinToString()) }
+        })
+
     }
 
 
@@ -314,7 +466,7 @@ class MainActivity : ComponentActivity() {
         ) {
 
             Row(
-                modifier = Modifier.padding(horizontal = 5.dp),
+                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
 
             ) {

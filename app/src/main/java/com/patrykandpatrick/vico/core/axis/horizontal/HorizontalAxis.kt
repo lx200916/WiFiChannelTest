@@ -31,7 +31,6 @@ import com.patrykandpatrick.vico.core.axis.AxisRenderer
 import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
 import com.patrykandpatrick.vico.core.axis.formatter.DecimalFormatAxisValueFormatter
 import com.patrykandpatrick.vico.core.axis.formatter.DefaultAxisValueFormatter
-import com.patrykandpatrick.vico.core.axis.setTo
 import com.patrykandpatrick.vico.core.chart.draw.ChartDrawContext
 import com.patrykandpatrick.vico.core.chart.insets.Insets
 import com.patrykandpatrick.vico.core.chart.segment.SegmentProperties
@@ -531,7 +530,7 @@ public inline fun <reified Position : AxisPosition.Horizontal> createHorizontalA
 ): HorizontalAxis<Position> = HorizontalAxis.Builder<Position>().apply(block).build()
 
 @Composable
-public fun bottomAxis(
+public fun bottomAxisX(
     label: TextComponent? = axisLabelComponent(),
     axis: LineComponent? = axisLineComponent(),
     tick: LineComponent? = axisTickComponent(),
