@@ -49,26 +49,27 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.patrykandpatrick.vico.compose.axis.horizontal.bottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.startAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
 import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
 import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
-import com.patrykandpatrick.vico.core.axis.horizontal.bottomAxisX
+import com.patrykandpatrick.vico.core.axis.horizontal.HorizontalAxis
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 import org.saltedfish.apitest.ui.theme.LineColors
 import kotlin.math.absoluteValue
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WiFiListScreen(ssidLists: List<ScanResult>, paddingValues: PaddingValues) {
+fun WiFiListScreen(ssidList: List<ScanResult>, paddingValues: PaddingValues) {
     val TAG="WiFiListScreen"
 //    val ssidList by remember {
 ////        derivedStateOf {
 //            ssidLists
 ////        }
 //    }
-    val ssidList = ssidLists
+
     Log.i(TAG,ssidList.hashCode().toString())
     var chartEntryModel = remember {
         entryModelOf(0)
@@ -221,7 +222,7 @@ fun WiFiListScreen(ssidLists: List<ScanResult>, paddingValues: PaddingValues) {
                     }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         Row {
-                            DetailGridItem("Standard", selectedWifiInfo.wifiStandard.toString())
+                            DetailGridItem("Standard", selectedWifiInfo.StandardToString())
                         }
 
                     }
@@ -253,7 +254,8 @@ fun WiFiListScreen(ssidLists: List<ScanResult>, paddingValues: PaddingValues) {
                         chart = lineChart(),
                         model = chartEntryModel,
                         startAxis = startAxis(),
-                        bottomAxis = bottomAxisX(tickOmitSpacing = listOf(65f..99f)),
+//                        bottomAxis = bottomAxis(tickOmitSpacing = listOf(65f..99f)),
+                        bottomAxis = bottomAxis(),
                         marker = rememberMarker()
                     )
                 }

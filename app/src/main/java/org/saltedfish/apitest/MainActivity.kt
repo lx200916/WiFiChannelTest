@@ -51,11 +51,22 @@ import androidx.core.view.WindowCompat
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.statement.bodyAsText
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import org.json.JSONObject
 import org.saltedfish.apitest.ui.theme.APITestTheme
 import kotlin.math.absoluteValue
 
 class MainActivity : ComponentActivity() {
-     val TAG = "MainActivity"
+    val TAG = "MainActivity"
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
@@ -63,16 +74,25 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         WindowCompat.setDecorFitsSystemWindows(window, false)
-
-
         setContent {
             val locationPermissionState = rememberPermissionState(
                 Manifest.permission.ACCESS_FINE_LOCATION
             )
+            val client = remember {
+                HttpClient(OkHttp) {
+                    engine {
+                        // Configure an engine
+                    }
+
+                }
+            }
             val navIndex = remember {
                 mutableStateOf(0)
             }
             val wiFiInfoList = remember { mutableStateListOf<ScanResult>() }
+            var (APInfoJson, setAPINfoJSon) = remember {
+                mutableStateOf<JSONObject?>(null)
+            }
             LaunchedEffect(true) {
                 val wifiScanReceiver = object : BroadcastReceiver() {
                     @SuppressLint("MissingPermission")
@@ -89,14 +109,22 @@ class MainActivity : ComponentActivity() {
                         val scanResults =
                             wifiManager.scanResults.sortedWith(compareBy { item -> item.level.absoluteValue })
                         wiFiInfoList.addAll(scanResults)
-                        Log.i(TAG,scanResults.size.toString())
-
+                        Log.i(TAG, scanResults.size.toString())
+                        Log.i(TAG, "Scan Updated")
                     }
                 }
                 val intentFilter = IntentFilter()
                 intentFilter.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)
                 applicationContext.registerReceiver(wifiScanReceiver, intentFilter)
             }
+            LaunchedEffect(true) {
+
+                val resp = getAPInfo(client);
+                if (resp != null) {
+                    setAPINfoJSon(resp)
+                }
+            }
+
             LaunchedEffect(locationPermissionState.status) {
                 if (!locationPermissionState.status.isGranted) {
                     Log.e(TAG, "No permission to scan wifi")
@@ -155,7 +183,7 @@ class MainActivity : ComponentActivity() {
                                         onClick = { navIndex.value = 1 },
                                         isActive = navIndex.value == 1
                                     )
-                                    navIconButton(
+                                    if (APInfoJson != null) navIconButton(
                                         icon = painterResource(id = R.drawable.router_24px),
                                         onClick = { navIndex.value = 2 },
                                         isActive = navIndex.value == 2
@@ -183,10 +211,11 @@ class MainActivity : ComponentActivity() {
                                 })
                         }
                     ) {
-//                        WiFiListScreen(ssidList = wiFiInfoList.toList(),it)
+//                        WiFiListScreen(wiFiInfoList.toList(),it)
                         when (navIndex.value) {
-                            0 -> WiFiListScreen(ssidLists = wiFiInfoList.toList(),it)
-
+                            0 -> WiFiListScreen(wiFiInfoList.toList(), it)
+                            1 -> SpeedInfoScreen(it)
+                            2 -> if (APInfoJson != null) APScreen(it, APInfoJson)
                         }
                     }
             }
@@ -210,6 +239,19 @@ class MainActivity : ComponentActivity() {
                 Pair(end.toFloat(), 0.0)
             )
         }
+    }
+
+    suspend fun getAPInfo(client: HttpClient): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try{
+            val resp = client.post("https://buptnet.icu/api/wireless/diag").bodyAsText()
+            Log.i(TAG, resp)
+            JSONObject(resp)
+        } catch (err: Throwable) {
+            Log.e(TAG, "Network Error:${err}")
+            null
+        }}
+
     }
 
     @Composable

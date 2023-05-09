@@ -1,8 +1,10 @@
 package org.saltedfish.apitest
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 
 @Composable
-fun SpeedInfoScreen(){
+fun SpeedInfoScreen(paddingValues: PaddingValues) {
+
 
 }
