@@ -42,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -108,7 +109,7 @@ fun WiFiListScreen(ssidList: List<ScanResult>, paddingValues: PaddingValues) {
             entrys.add(
                 if (scanResult.channelWidth == ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ) {
                     //TODO: Do not Support 80+80
-                    listOf(NamedFloatEntry(0.0f, 0.0f, scanResult.SSID))
+                    listOf(NamedFloatEntry(0.0f, 0.0f, name = scanResult.SSID))
                 } else {
                     val center = scanResult.frequency;
                     val length = scanResult.getChannelWidth() / 2;
@@ -124,13 +125,13 @@ fun WiFiListScreen(ssidList: List<ScanResult>, paddingValues: PaddingValues) {
                     }
 
                     listOf(
-                        NamedFloatEntry(start.toFloat(), 0.0f, scanResult.SSID),
+                        NamedFloatEntry(start.toFloat(), 0.0f, name =  scanResult.SSID),
                         NamedFloatEntry(
                             getChannelIndex(center).toFloat(),
                             scanResult.level.absoluteValue.toFloat(),
-                            scanResult.SSID
+                            name = scanResult.SSID
                         ),
-                        NamedFloatEntry(end.toFloat(), 0.0f, scanResult.SSID)
+                        NamedFloatEntry(end.toFloat(), 0.0f, name =  scanResult.SSID)
                     )
                 }
             )
@@ -188,6 +189,7 @@ fun WiFiListScreen(ssidList: List<ScanResult>, paddingValues: PaddingValues) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier.fillMaxWidth()
                     ) {
+
                         DetailGridItem("BSSID", selectedWifiInfo.BSSID)
                         DetailGridItem(
                             "Frequency",
@@ -296,13 +298,16 @@ fun WiFiListScreen(ssidList: List<ScanResult>, paddingValues: PaddingValues) {
                                 modifier = Modifier.widthIn(max = 170.dp),
                                 text = wiFiInfo.SSID,
                                 style = MaterialTheme.typography.titleLarge,
-                                fontWeight = if (wiFiInfo.frequency > 3000) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (wiFiInfo.frequency > 3000) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 2
 
                             )
                             Spacer(modifier = Modifier.weight(1f))
                             Text(
                                 text = wiFiInfo.BSSID,
-                                style = MaterialTheme.typography.titleSmall
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.blur(radius = 16.dp)
+
                             )
                         }
                         Column(

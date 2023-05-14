@@ -13,6 +13,7 @@ import com.patrykandpatrick.vico.core.entry.FloatEntry
 import com.patrykandpatrick.vico.core.marker.Marker
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Date
 
 fun ScanResult.getChannelWidth():Int{
     return when(this.channelWidth){
@@ -59,10 +60,11 @@ fun getChannelIndex(channel:Int):Int{
     }
 }
 
-public data class NamedFloatEntry(
+open class NamedFloatEntry(
     override val x: Float,
     override val y: Float,
-    val name:String
+    open val Yv: Float=0f,
+    open val name:String
 ) : ChartEntry {
     override fun withY(y: Float): ChartEntry = FloatEntry(
         x = x,
@@ -137,6 +139,10 @@ fun JSONObject.getFormatedSpeed(key: String):String{
 fun JSONObject.getFormatedDateTime(key: String):String{
     val date = this.getIntOpt(key)
     return android.text.format.DateFormat.format("MM-dd HH:mm:ss", java.util.Date(date*1000L)).toString()
+}
+fun JSONObject.getTimeStamp(key: String):Date{
+    val date = this.getIntOpt(key)
+    return Date(date*1000L)
 }
 
 

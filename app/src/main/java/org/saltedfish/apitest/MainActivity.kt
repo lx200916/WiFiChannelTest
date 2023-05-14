@@ -118,7 +118,6 @@ class MainActivity : ComponentActivity() {
                 applicationContext.registerReceiver(wifiScanReceiver, intentFilter)
             }
             LaunchedEffect(true) {
-
                 val resp = getAPInfo(client);
                 if (resp != null) {
                     setAPINfoJSon(resp)
@@ -246,8 +245,10 @@ class MainActivity : ComponentActivity() {
             try{
             val resp = client.post("https://buptnet.icu/api/wireless/diag").bodyAsText()
             Log.i(TAG, resp)
+
             JSONObject(resp)
         } catch (err: Throwable) {
+
             Log.e(TAG, "Network Error:${err}")
             null
         }}

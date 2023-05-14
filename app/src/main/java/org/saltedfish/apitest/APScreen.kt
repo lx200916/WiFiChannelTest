@@ -1,5 +1,7 @@
 package org.saltedfish.apitest
 
+import android.graphics.Typeface
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -42,11 +44,36 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.patrykandpatrick.vico.compose.axis.horizontal.bottomAxis
+import com.patrykandpatrick.vico.compose.axis.vertical.startAxis
+import com.patrykandpatrick.vico.compose.chart.Chart
+import com.patrykandpatrick.vico.compose.chart.line.lineChart
+import com.patrykandpatrick.vico.compose.component.shapeComponent
+import com.patrykandpatrick.vico.compose.component.textComponent
+import com.patrykandpatrick.vico.compose.dimensions.dimensionsOf
+import com.patrykandpatrick.vico.compose.legend.verticalLegend
+import com.patrykandpatrick.vico.compose.legend.verticalLegendItem
+import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
+import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
+import com.patrykandpatrick.vico.compose.style.currentChartStyle
+import com.patrykandpatrick.vico.core.axis.Axis
+import com.patrykandpatrick.vico.core.axis.AxisPosition
+import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
+import com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider
+import com.patrykandpatrick.vico.core.component.shape.Shapes
+import com.patrykandpatrick.vico.core.entry.ChartEntry
+import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
+import com.patrykandpatrick.vico.core.legend.horizonLegend
+import com.patrykandpatrick.vico.core.legend.horizonLegendItem
 import org.json.JSONObject
 import org.saltedfish.apitest.shapes.RoundedStarShape
+import org.saltedfish.apitest.ui.theme.LineColors
+import java.util.Date
+val XAxislist= listOf<String>("终端接受","终端发送","干扰")
 
 @Composable
 fun APScreen(paddingValues: PaddingValues,APInfo:JSONObject) {
+
     val apInfo = remember(APInfo){
         APInfo.getObjectOpt("ap")
     }
@@ -55,6 +82,42 @@ fun APScreen(paddingValues: PaddingValues,APInfo:JSONObject) {
     }
     if (apInfo == null || staInfo == null) {
         return
+    }
+    val apChartEntrys = remember(apInfo){
+        if (APInfo.getObjectOpt("ap_trends")?.getArrayOpt("current_channel_utilization") == null) {
+            return@remember null
+        }
+        val apTrends = APInfo.getObjectOpt("ap_trends")!!
+        val currentChannelUtilization = apTrends.getArrayOpt("current_channel_utilization")!!
+        val latest_snapshot_time = (apTrends.getIntOpt("latest_snapshot_time")-(currentChannelUtilization.length()-1)*2*60)*1000L
+
+        val chartEntrys = listOf<MutableList<ChartEntry>>(mutableListOf(), mutableListOf(),
+            mutableListOf()
+        )
+        for (i in 0 until currentChannelUtilization.length()) {
+            val entry = currentChannelUtilization.getString(i)
+            val entries = entry.split(",")
+            if (entries.size != 4) {
+                continue
+            }
+            val all = entries.last().toFloat()
+            var stackedY = 0f;
+            for (x in 0..2){
+                val percent = entries[x].toLong()/all*100
+                val time = latest_snapshot_time+i*2*60*1000
+                stackedY+=percent
+//                Log.i("AP", time.toString())
+                chartEntrys[x].add(DatetimeEntry(Date(time),XAxislist[x],i.toFloat(),stackedY,percent))
+            }
+        }
+             ChartEntryModelProducer(chartEntrys).getModel()
+    }
+    val axisValueFormatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, chartValues ->
+        (chartValues.chartEntryModel.entries.first().getOrNull(value.toInt()) as? DatetimeEntry)
+            ?.localDate
+            ?.let {
+//                Log.i("APScreen",android.text.format.DateFormat.format("yyyy-MM-dd hh:mm:ss",it).toString())
+                android.text.format.DateFormat.format("HH\nmm",it).toString() }.toString()
     }
     val roundedStarShape = remember {
         RoundedStarShape(
@@ -209,11 +272,30 @@ fun APScreen(paddingValues: PaddingValues,APInfo:JSONObject) {
                 leadingIcon = { painterResource(id = R.drawable.devices_other_48px)}
             )
         }
+        if (apChartEntrys!=null) Card(
+            Modifier
+                .fillMaxWidth()
+        ) {
+            ProvideChartStyle(m3ChartStyle(entityColors = LineColors).let {  it.copy( it.axis.copy(axisLabelLineCount = 2, )) }) {
+                Chart(
+                    modifier = Modifier
+                        .padding(5.dp)
+                        .padding(vertical = 5.dp),
+//                    chart = lineChart(axisValuesOverrider = AxisValuesOverrider.fixed(minY = 0f, maxY = 100f,)),
+                    chart = lineChart(),
+                    model = apChartEntrys,
+                    startAxis = startAxis(),
+//                        bottomAxis = bottomAxis(tickOmitSpacing = listOf(65f..99f)),
+                    bottomAxis = bottomAxis(valueFormatter = axisValueFormatter, labelRotationDegrees = 0f, title = "AP Channels Usage"),
+                    marker = rememberMarker(),
+                    legend = rememberLegend(),
+
+                )
+            }
+        }
         Spacer(modifier =Modifier.height(10.dp))
     }
 }
-
-
 
 
 
@@ -250,6 +332,7 @@ fun DetailsCard(
         }
     }
 
+
 }
 
 fun LazyGridScope.DetailsCardItem(
@@ -263,4 +346,31 @@ fun LazyGridScope.DetailsCardItem(
     }
 
 
+}
+@Composable
+private fun rememberLegend() = horizonLegend(
+    items = XAxislist.mapIndexed { index, chartName ->
+        horizonLegendItem(
+            icon = shapeComponent(Shapes.pillShape, LineColors[index]),
+            label = textComponent(
+                color = currentChartStyle.axis.axisLabelColor,
+                textSize = 12.sp,
+                typeface = Typeface.MONOSPACE,
+            ),
+            labelText = chartName,
+        )
+    },
+    iconSize = 8.dp,
+    iconPadding = 10.dp,
+    spacing = 10.dp,
+    padding = dimensionsOf(top = 8.dp),
+)
+class DatetimeEntry(
+    val localDate: Date,
+    override val name:String,
+    override val x: Float,
+    override val y: Float,
+    override val Yv:Float
+) : NamedFloatEntry(x, y,Yv,name) {
+    override fun withY(y: Float) = DatetimeEntry(localDate,name, x,Yv, y)
 }
