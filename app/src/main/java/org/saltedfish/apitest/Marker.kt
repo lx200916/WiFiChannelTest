@@ -105,7 +105,7 @@ internal fun rememberMarker(): Marker {
                         if(model.entry is NamedFloatEntry){
                             val entry:NamedFloatEntry = model.entry as NamedFloatEntry
                             appendCompat(
-                                "${entry.name}: ${if (entry.Yv!=0f) String.format("%.2f", entry.Yv) else String.format("%.2f", model.entry.y)}",
+                                "${entry.name}: ${if (entry.Yv>=0f) String.format("%.2f", entry.Yv) else String.format("%.2f", model.entry.y)}",
                                 ForegroundColorSpan(model.color),
                                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
                             )

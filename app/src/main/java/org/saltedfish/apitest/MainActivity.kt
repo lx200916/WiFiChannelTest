@@ -67,7 +67,7 @@ import kotlin.math.absoluteValue
 
 class MainActivity : ComponentActivity() {
     val TAG = "MainActivity"
-
+    var wifiScanReceiver:BroadcastReceiver? = null
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -94,7 +94,7 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf<JSONObject?>(null)
             }
             LaunchedEffect(true) {
-                val wifiScanReceiver = object : BroadcastReceiver() {
+                wifiScanReceiver = object : BroadcastReceiver() {
                     @SuppressLint("MissingPermission")
                     override fun onReceive(context: Context, intent: Intent) {
                         wiFiInfoList.clear()
@@ -111,6 +111,7 @@ class MainActivity : ComponentActivity() {
                         wiFiInfoList.addAll(scanResults)
                         Log.i(TAG, scanResults.size.toString())
                         Log.i(TAG, "Scan Updated")
+                        applicationContext.unregisterReceiver(this)
                     }
                 }
                 val intentFilter = IntentFilter()

@@ -34,15 +34,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -56,22 +52,20 @@ import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
 import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
 import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
-import com.patrykandpatrick.vico.core.axis.horizontal.HorizontalAxis
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 import org.saltedfish.apitest.ui.theme.LineColors
 import kotlin.math.absoluteValue
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WiFiListScreen(ssidList: List<ScanResult>, paddingValues: PaddingValues) {
-    val TAG="WiFiListScreen"
+    val TAG = "WiFiListScreen"
 //    val ssidList by remember {
 ////        derivedStateOf {
 //            ssidLists
 ////        }
 //    }
-
-    Log.i(TAG,ssidList.hashCode().toString())
     var chartEntryModel = remember {
         entryModelOf(0)
     }
@@ -125,13 +119,13 @@ fun WiFiListScreen(ssidList: List<ScanResult>, paddingValues: PaddingValues) {
                     }
 
                     listOf(
-                        NamedFloatEntry(start.toFloat(), 0.0f, name =  scanResult.SSID),
+                        NamedFloatEntry(start.toFloat(), 0.0f, name = scanResult.SSID),
                         NamedFloatEntry(
                             getChannelIndex(center).toFloat(),
                             scanResult.level.absoluteValue.toFloat(),
                             name = scanResult.SSID
                         ),
-                        NamedFloatEntry(end.toFloat(), 0.0f, name =  scanResult.SSID)
+                        NamedFloatEntry(end.toFloat(), 0.0f, name = scanResult.SSID)
                     )
                 }
             )
@@ -143,7 +137,9 @@ fun WiFiListScreen(ssidList: List<ScanResult>, paddingValues: PaddingValues) {
     }
 
     Scaffold(
-        modifier = Modifier.padding(paddingValues = paddingValues).fillMaxSize(),
+        modifier = Modifier
+            .padding(paddingValues = paddingValues)
+            .fillMaxSize(),
         topBar = {
             TopAppBar(
                 title = {
@@ -155,94 +151,104 @@ fun WiFiListScreen(ssidList: List<ScanResult>, paddingValues: PaddingValues) {
                 },
                 Modifier.padding(all = 10.dp)
             )
-        }, contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
 
-        ){ if (selectedWifiScanResult.value != null) {
-        val selectedWifiInfo = selectedWifiScanResult.value!!
-        AlertDialog(
-            onDismissRequest = {
-                // Dismiss the dialog when the user clicks outside the dialog or on the back
-                // button. If you want to disable that functionality, simply use an empty
-                // onDismissRequest.
-                selectedWifiScanResult.value = null
-            },
-            confirmButton = {
-                TextButton(onClick = { selectedWifiScanResult.value = null }) {
-                    Text("OK", fontWeight = FontWeight.ExtraBold)
-                }
+        ) {
+        if (selectedWifiScanResult.value != null) {
+            val selectedWifiInfo = selectedWifiScanResult.value!!
+            AlertDialog(
+                onDismissRequest = {
+                    // Dismiss the dialog when the user clicks outside the dialog or on the back
+                    // button. If you want to disable that functionality, simply use an empty
+                    // onDismissRequest.
+                    selectedWifiScanResult.value = null
+                },
+                confirmButton = {
+                    TextButton(onClick = { selectedWifiScanResult.value = null }) {
+                        Text("OK", fontWeight = FontWeight.ExtraBold)
+                    }
 
-            },
-            icon = {
-                Icon(
-                    painter = painterResource(id = if (selectedWifiInfo.frequency < 5000) R.drawable.baseline_wifi_24 else R.drawable.baseline_wifi_tethering_24),
-                    tint = MaterialTheme.colorScheme.primary,
-                    contentDescription = "WiFi Icon",
-                    modifier = Modifier.size(48.dp)
-                )
-            },
-            title = {
-                Text(text = selectedWifiInfo.SSID)
-            },
-            text = {
-                Column() {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                },
+                icon = {
+                    Icon(
+                        painter = painterResource(id = if (selectedWifiInfo.frequency < 5000) R.drawable.baseline_wifi_24 else R.drawable.baseline_wifi_tethering_24),
+                        tint = MaterialTheme.colorScheme.primary,
+                        contentDescription = "WiFi Icon",
+                        modifier = Modifier.size(48.dp)
+                    )
+                },
+                title = {
+                    Text(text = selectedWifiInfo.SSID)
+                },
+                text = {
+                    Column() {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
 
-                        DetailGridItem("BSSID", selectedWifiInfo.BSSID)
-                        DetailGridItem(
-                            "Frequency",
-                            "${selectedWifiInfo.frequency} MHz"
-                        )
-                    }
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        DetailGridItem("RSSI", selectedWifiInfo.level.toString())
-                        DetailGridItem(
-                            "Channel",
-                            "${getChannelIndex(selectedWifiInfo.frequency)}"
-                        )
-                    }
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        DetailGridItem("Channel Width", selectedWifiInfo.getChannelWidthFriendlyName())
-                        DetailGridItem(
-                            "Overlapped SSID Num",
-                            "${(getChannelIndex(selectedWifiInfo.frequency - selectedWifiInfo.getChannelWidth()/2-1)..getChannelIndex( selectedWifiInfo.frequency + selectedWifiInfo.getChannelWidth()/2)+1).map { channelIndexOverlappedMap[it]?: listOf() }.distinct().size-1}"
-                        )
-                    }
-                    Row(
-//                                            horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        DetailGridItem("Capability", selectedWifiInfo.capabilities)
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        Row {
-                            DetailGridItem("Standard", selectedWifiInfo.StandardToString())
+                            DetailGridItem("BSSID", selectedWifiInfo.BSSID)
+                            DetailGridItem(
+                                "Frequency",
+                                "${selectedWifiInfo.frequency} MHz"
+                            )
                         }
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            DetailGridItem("RSSI", selectedWifiInfo.level.toString())
+                            DetailGridItem(
+                                "Channel",
+                                "${getChannelIndex(selectedWifiInfo.frequency)}"
+                            )
+                        }
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            DetailGridItem(
+                                "Channel Width",
+                                selectedWifiInfo.getChannelWidthFriendlyName()
+                            )
+                            DetailGridItem(
+                                "Overlapped SSID Num",
+                                "${
+                                    (getChannelIndex(selectedWifiInfo.frequency - selectedWifiInfo.getChannelWidth() / 2 - 1)..getChannelIndex(
+                                        selectedWifiInfo.frequency + selectedWifiInfo.getChannelWidth() / 2
+                                    ) + 1).map { channelIndexOverlappedMap[it] ?: listOf() }
+                                        .distinct().size - 1
+                                }"
+                            )
+                        }
+                        Row(
+//                                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            DetailGridItem("Capability", selectedWifiInfo.capabilities)
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            Row {
+                                DetailGridItem("Standard", selectedWifiInfo.StandardToString())
+                            }
 
+                        }
                     }
+
+
                 }
 
 
-            }
+            )
 
-
-        )
-
-    }
+        }
         Column(
             modifier = Modifier
                 .padding(top = it.calculateTopPadding(), bottom = it.calculateBottomPadding())
                 .padding(horizontal = 20.dp)
         ) {
-            Log.e(TAG,wiFiInfoList.size.toString()+"!")
+            Log.e(TAG, wiFiInfoList.size.toString() + "!")
             if (wiFiInfoList.isNotEmpty()) Card(
                 Modifier
                     .fillMaxWidth()
@@ -306,7 +312,7 @@ fun WiFiListScreen(ssidList: List<ScanResult>, paddingValues: PaddingValues) {
                             Text(
                                 text = wiFiInfo.BSSID,
                                 style = MaterialTheme.typography.titleSmall,
-                                modifier = Modifier.blur(radius = 16.dp)
+//                                modifier = Modifier.blur(radius = 16.dp)
 
                             )
                         }
@@ -349,6 +355,7 @@ fun WiFiListScreen(ssidList: List<ScanResult>, paddingValues: PaddingValues) {
     }
 
 }
+
 @Composable
 fun DetailGridItem(key: String, vararg value: String) {
     Text(text = buildAnnotatedString {

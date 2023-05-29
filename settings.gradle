@@ -10,6 +10,13 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven {
+            url = uri("https://maven.pkg.github.com/lx200916/traceroute-for-android")
+            credentials {
+                username = getProperty("gpr.user") ?: System.getenv("USERNAME")
+                password = getProperty("gpr.key") ?: System.getenv("TOKEN")
+            }
+        }
     }
 }
 rootProject.name = "APITest"
